@@ -1,10 +1,77 @@
 from flask import Flask, request, jsonify
-import os
+import requests
 
 app = Flask(__name__)
 
-# Este token lo pondrás en Meta más adelante
-VERIFY_TOKEN = "mi_token_secreto_carpinteria" 
+# --- CREDENCIALES ---
+VERIFY_TOKEN = "mi_token_secreto_carpinteria"
+WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
+PHONE_NUMBER_ID = "1253318837856388"
+
+def enviar_menu_principal(numero_destino):
+    """Función para enviar el menú con 3 botones a través de la API de Meta"""
+    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
+    
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # Nota: Los títulos de los botones en WhatsApp tienen un límite estricto de 20 caracteres.
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero_destino,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": "🪵 *Sistema de Inventario*\n\nHola. Selecciona la acción que deseas realizar hoy:"
+            },
+            "action": {
+                "buttons": [
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "btn_añadir_inv",
+                            "title": "📥 Añadir a inv."
+                        }
+                    },
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "btn_enviar_sucursal",
+                            "title": "🚚 Enviar sucursal"
+                        }
+                    },
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "btn_consultar_inv",
+                            "title": "📊 Consultar inv."
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    print("Respuesta de Meta:", response.json())
+
+def enviar_texto(numero_destino, texto):
+    """Función temporal para responder cuando tocan un botón"""
+    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero_destino,
+        "type": "text",
+        "text": {"body": texto}
+    }
+    requests.post(url, headers=headers, json=data)
 
 @app.route('/webhook', methods=['GET'])
 def verificar_webhook():
@@ -28,39 +95,23 @@ def recibir_mensajes():
             mensaje_info = body['entry'][0]['changes'][0]['value']['messages'][0]
             numero_remitente = mensaje_info['from']
             
-            # 1. SI EL USUARIO ESCRIBE UN TEXTO (Ej: "Hola")
+            # --- SI LLEGA UN MENSAJE DE TEXTO (Ej: "Hola") ---
             if mensaje_info['type'] == 'text':
-                texto = mensaje_info['text']['body'].lower()
-                print(f"Mensaje: {texto}")
-                # Aquí enviaremos el Menú Principal con 3 botones:
-                # - Añadir a inventario
-                # - Enviar a sucursal
-                # - Consultar inventario
+                texto = mensaje_info['text']['body']
+                print(f"Mensaje recibido: {texto}")
+                # Disparamos el menú principal
+                enviar_menu_principal(numero_remitente)
                 
-            # 2. SI EL USUARIO TOCA UN BOTÓN
+            # --- SI EL USUARIO TOCA UN BOTÓN ---
             elif mensaje_info['type'] == 'interactive':
                 boton_id = mensaje_info['interactive']['button_reply']['id']
                 
-                # --- SUBMENÚ: AÑADIR A INVENTARIO ---
                 if boton_id == "btn_añadir_inv":
-                    # Aquí enviaremos 3 botones nuevos:
-                    # 1. Seleccionar modelo (id: btn_seleccionar_modelo)
-                    # 2. Añadidos hoy (id: btn_añadidos_hoy)
-                    # 3. Stock del día (id: btn_stock_dia)
-                    print("El usuario quiere añadir al inventario. Mostrando sub-opciones...")
-
-                # --- SUBMENÚ: CONSULTAR INVENTARIO ---
+                    enviar_texto(numero_remitente, "⏳ Procesando sub-menú de añadir marcos...")
+                elif boton_id == "btn_enviar_sucursal":
+                    enviar_texto(numero_remitente, "⏳ Procesando sub-menú de envíos...")
                 elif boton_id == "btn_consultar_inv":
-                    # Aquí enviaremos 3 botones nuevos de sucursales:
-                    # 1. La Paz (id: btn_suc_lapaz)
-                    # 2. Santa Cruz (id: btn_suc_santacruz)
-                    # 3. Cochabamba (id: btn_suc_cocha)
-                    print("El usuario quiere consultar inventario. Mostrando sucursales...")
-                
-                # --- ACCIÓN: OBTENER EL STOCK DEL DÍA ---
-                elif boton_id == "btn_stock_dia":
-                    print("Calculando el algoritmo de producción diaria...")
-                    # Aquí haremos la petición a Google Apps Script para ejecutar tu función matemática
+                    enviar_texto(numero_remitente, "⏳ Procesando consulta de stock...")
 
         return jsonify({"status": "ok"}), 200
     return 'Not Found', 404
