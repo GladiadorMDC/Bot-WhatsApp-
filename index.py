@@ -115,6 +115,32 @@ def recibir_mensajes():
 
         return jsonify({"status": "ok"}), 200
     return 'Not Found', 404
+    @app.route('/iniciar', methods=['GET'])
+def forzar_primer_mensaje():
+    """Ruta secreta para forzar el primer mensaje de Meta y abrir el chat"""
+    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
+    
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # IMPORTANTE: Aquí pones tu número de Bolivia con el código de país (591)
+    numero_bolivia = "591XXXXXXXX" 
+    
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero_bolivia,
+        "type": "template",
+        "template": {
+            "name": "hello_world",
+            "language": {"code": "en_US"}
+        }
+    }
+    
+    respuesta = requests.post(url, headers=headers, json=data)
+    return f"¡Orden enviada a Meta! Resultado: {respuesta.text}"
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
