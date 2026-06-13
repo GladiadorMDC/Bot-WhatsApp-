@@ -126,7 +126,7 @@ def forzar_primer_mensaje():
     }
     
     # IMPORTANTE: Aquí pones tu número de Bolivia con el código de país (591)
-    numero_bolivia = "591XXXXXXXX" 
+    numero_bolivia = "59178150540" 
     
     data = {
         "messaging_product": "whatsapp",
