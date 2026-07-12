@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 import requests
+from datetime import datetime, timedelta
+import pytz
 
 app = Flask(__name__)
 
@@ -8,10 +10,9 @@ VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253318837856388"
 
-# 👇 PEGA TU URL DE APPS SCRIPT AQUÍ 👇
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzK92-GozvEaYYiKoAzfFgo1Gs0NRhdf1fkg8vxZh0cnWLfxE7mZK02ExntWLHS7HKDw/exec" 
+# 👇 PEGA TU NUEVA URL DE APPS SCRIPT AQUÍ 👇
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyy9fNJ9MLag4paS8JzlDCjX3hvn2_jhdKM-JCwftAApwdW0N2EK2VUFO36SOVogvMxQA/exec" 
 
-# --- DICCIONARIO DE PERFILES ---
 PERFILES = {
     "59178150540": "admin",             
     "591XXXXXXXX": "carpintero",        
@@ -19,123 +20,135 @@ PERFILES = {
     "591ZZZZZZZZ": "sucursal_cbba"      
 }
 
-def consultar_apps_script(accion, sucursal=""):
-    """Función puente para enviar la orden a Google Drive y recibir la respuesta"""
+# Zona horaria de Bolivia
+ZONA_BOLIVIA = pytz.timezone('America/La_Paz')
+
+def consultar_apps_script(accion, sucursal="", fecha=""):
     try:
-        payload = {"accion": accion, "sucursal": sucursal}
+        payload = {"accion": accion, "sucursal": sucursal, "fecha": fecha}
         response = requests.post(APPS_SCRIPT_URL, json=payload)
         datos = response.json()
         if datos.get("status") == "ok":
             return datos.get("texto")
         else:
-            return f"❌ Error en la base de datos: {datos.get('mensaje')}"
+            return f"❌ Error: {datos.get('mensaje')}"
     except Exception as e:
-        return f"❌ Error de conexión con Google Drive: {e}"
+        return f"❌ Error de conexión: {e}"
 
-def enviar_mensaje_botones(numero_destino, texto_body, botones_config):
+def enviar_texto(numero, texto):
     url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    botones_formateados = [{"type": "reply", "reply": {"id": b_id, "title": b_title}} for b_id, b_title in botones_config]
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
+    requests.post(url, headers=headers, json={"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texto}})
+
+def enviar_mensaje_botones(numero, texto_body, botones_config):
+    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
+    botones = [{"type": "reply", "reply": {"id": b[0], "title": b[1]}} for b in botones_config]
     data = {
         "messaging_product": "whatsapp",
-        "to": numero_destino,
+        "to": numero,
+        "type": "interactive",
+        "interactive": {"type": "button", "body": {"text": texto_body}, "action": {"buttons": botones}}
+    }
+    requests.post(url, headers=headers, json=data)
+
+def enviar_mensaje_lista(numero, titulo, descripcion, boton_texto, opciones):
+    """Genera un menú desplegable estilo calendario para elegir fechas"""
+    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
+    
+    rows = [{"id": op[0], "title": op[1]} for op in opciones]
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero,
         "type": "interactive",
         "interactive": {
-            "type": "button",
-            "body": {"text": texto_body},
-            "action": {"buttons": botones_formateados}
+            "type": "list",
+            "header": {"type": "text", "text": titulo},
+            "body": {"text": descripcion},
+            "action": {
+                "button": boton_texto,
+                "sections": [{"title": "Fechas Disponibles", "rows": rows}]
+            }
         }
     }
     requests.post(url, headers=headers, json=data)
 
-def enviar_texto(numero_destino, texto):
-    url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": numero_destino,
-        "type": "text",
-        "text": {"body": texto}
-    }
-    requests.post(url, headers=headers, json=data)
+def generar_fechas_recientes():
+    """Calcula los últimos 7 días automáticamente"""
+    hoy = datetime.now(ZONA_BOLIVIA)
+    fechas = []
+    for i in range(7):
+        dia = hoy - timedelta(days=i)
+        fecha_id = f"fecha_{dia.strftime('%Y-%m-%d')}"
+        if i == 0:
+            nombre = f"Hoy ({dia.strftime('%d/%m')})"
+        elif i == 1:
+            nombre = f"Ayer ({dia.strftime('%d/%m')})"
+        else:
+            nombre = dia.strftime('%d/%m/%Y')
+        fechas.append((fecha_id, nombre))
+    return fechas
 
-@app.route('/webhook', methods=['GET'])
-def verificar_webhook():
-    mode = request.args.get('hub.mode')
-    token = request.args.get('hub.verify_token')
-    challenge = request.args.get('hub.challenge')
-    if mode and token and mode == 'subscribe' and token == VERIFY_TOKEN:
-        return challenge, 200
-    return 'Bot activo', 200
+@app.route('/webhook', methods=['GET', 'POST'])
+def webhook():
+    if request.method == 'GET':
+        if request.args.get('hub.mode') == 'subscribe' and request.args.get('hub.verify_token') == VERIFY_TOKEN:
+            return request.args.get('hub.challenge'), 200
+        return 'Bot activo', 200
 
-@app.route('/webhook', methods=['POST'])
-def recibir_mensajes():
     body = request.get_json()
-
     if body.get('object') and body.get('entry') and body['entry'][0].get('changes') and body['entry'][0]['changes'][0].get('value').get('messages'):
         mensaje_info = body['entry'][0]['changes'][0]['value']['messages'][0]
         numero_remitente = mensaje_info['from']
-        
-        print(f"📥 Mensaje recibido del número: {numero_remitente}")
         rol_usuario = PERFILES.get(numero_remitente, "desconocido")
 
         if rol_usuario == "desconocido":
-            enviar_texto(numero_remitente, "⛔ Acceso denegado. Este número no está registrado en el sistema.")
+            enviar_texto(numero_remitente, "⛔ Acceso denegado.")
             return jsonify({"status": "ok"}), 200
 
-        # --- MENSAJE INICIAL ---
+        # --- MENSAJE INICIAL DE TEXTO ---
         if mensaje_info['type'] == 'text':
             if rol_usuario == "admin":
-                texto = "👑 *Panel de Administración*\nHola. Selecciona la acción a realizar:"
-                botones = [("btn_admin_control", "Control"), ("btn_admin_trabajos", "Trabajos"), ("btn_admin_inv", "Inventario")]
-                enviar_mensaje_botones(numero_remitente, texto, botones)
-            
-            elif rol_usuario == "carpintero":
-                texto = "🛠️ *Panel de Taller*\nHola Maestro. Seleccione una opción:"
-                botones = [("btn_carp_lista", "Lista Semanal"), ("btn_carp_inv", "Ver Inventario")]
-                enviar_mensaje_botones(numero_remitente, texto, botones)
+                enviar_mensaje_botones(numero_remitente, "👑 *Panel de Administración*", [("btn_admin_control", "Control"), ("btn_admin_trabajos", "Trabajos"), ("btn_admin_inv", "Inventario")])
 
-        # --- INTERACCIONES BOTONES ---
+        # --- INTERACCIONES (BOTONES Y LISTAS) ---
         elif mensaje_info['type'] == 'interactive':
-            boton_id = mensaje_info['interactive']['button_reply']['id']
-            print(f"👆 Botón presionado: {boton_id}")
+            interaccion = mensaje_info['interactive']
             
-            if rol_usuario == "admin":
+            # Si tocó un Botón normal
+            if interaccion['type'] == 'button_reply':
+                boton_id = interaccion['button_reply']['id']
+                
                 if boton_id == "btn_admin_control":
-                    texto = "⚙️ *Control de Listas*\n¿Qué área deseas gestionar?"
-                    botones = [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")]
-                    enviar_mensaje_botones(numero_remitente, texto, botones)
-                
+                    enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")])
                 elif boton_id == "btn_ctrl_carpinteria":
-                    texto = "🪵 *Lista de Carpintería Semanal*\nNo hay una lista activa."
-                    botones = [("btn_crear_lista_carp", "Crear Lista Nueva")]
-                    enviar_mensaje_botones(numero_remitente, texto, botones)
-                
-                elif boton_id == "btn_ctrl_envios":
-                    texto = "🚚 *Control de Envíos*\n¿Para qué sucursal generarás la lista?"
-                    botones = [("btn_crear_envio_lpz", "La Paz"), ("btn_crear_envio_cbba", "Cochabamba")]
-                    enviar_mensaje_botones(numero_remitente, texto, botones)
-                
-                # --- LA MAGIA: CONEXIÓN CON DRIVE ---
+                    enviar_mensaje_botones(numero_remitente, "🪵 *Lista de Carpintería Semanal*", [("btn_crear_lista_carp", "Crear Lista Nueva")])
                 elif boton_id == "btn_crear_lista_carp":
-                    enviar_texto(numero_remitente, "⏳ Extrayendo historial y calculando necesidades de producción... Esto puede tomar unos segundos.")
+                    enviar_texto(numero_remitente, "⏳ Procesando historial de últimos 30 días y ajustes...")
                     resultado = consultar_apps_script("generar_lista_carpinteria")
                     enviar_texto(numero_remitente, resultado)
                 
-                elif boton_id == "btn_crear_envio_lpz":
-                    enviar_texto(numero_remitente, "⏳ Analizando inventario de Santa Cruz y necesidades de La Paz...")
-                elif boton_id == "btn_crear_envio_cbba":
-                    enviar_texto(numero_remitente, "⏳ Analizando inventario de Santa Cruz y necesidades de Cochabamba...")
-                elif boton_id == "btn_admin_trabajos":
-                    enviar_texto(numero_remitente, "📅 *Historial de Trabajos*\nEscribe la fecha que deseas consultar:")
+                # --- AQUÍ ESTÁ LA MAGIA DEL INVENTARIO ---
                 elif boton_id == "btn_admin_inv":
-                    enviar_texto(numero_remitente, "📊 Mostrando inventario global...")
+                    enviar_texto(numero_remitente, "⏳ Consultando inventario en tiempo real...")
+                    resultado = consultar_apps_script("consultar_inventario", sucursal="Santa Cruz")
+                    enviar_texto(numero_remitente, resultado)
+                
+                # --- AQUÍ ESTÁ LA MAGIA DEL "CALENDARIO" ---
+                elif boton_id == "btn_admin_trabajos":
+                    fechas_menu = generar_fechas_recientes()
+                    enviar_mensaje_lista(numero_remitente, "📅 Calendario de Trabajos", "Selecciona el día que deseas consultar:", "🗓️ Elegir Fecha", fechas_menu)
+
+            # Si seleccionó una opción del Menú de Lista (Calendario)
+            elif interaccion['type'] == 'list_reply':
+                lista_id = interaccion['list_reply']['id']
+                
+                if lista_id.startswith("fecha_"):
+                    fecha_elegida = lista_id.replace("fecha_", "") # Extraemos el '2026-07-12'
+                    enviar_texto(numero_remitente, f"⏳ Buscando registros del {fecha_elegida}...")
+                    resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida)
+                    enviar_texto(numero_remitente, resultado)
 
     return jsonify({"status": "ok"}), 200
 
