@@ -8,6 +8,9 @@ VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253318837856388"
 
+# 👇 PEGA TU URL DE APPS SCRIPT AQUÍ 👇
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzK92-GozvEaYYiKoAzfFgo1Gs0NRhdf1fkg8vxZh0cnWLfxE7mZK02ExntWLHS7HKDw/exec" 
+
 # --- DICCIONARIO DE PERFILES ---
 PERFILES = {
     "59178150540": "admin",             
@@ -15,6 +18,19 @@ PERFILES = {
     "591YYYYYYYY": "sucursal_lpz",      
     "591ZZZZZZZZ": "sucursal_cbba"      
 }
+
+def consultar_apps_script(accion, sucursal=""):
+    """Función puente para enviar la orden a Google Drive y recibir la respuesta"""
+    try:
+        payload = {"accion": accion, "sucursal": sucursal}
+        response = requests.post(APPS_SCRIPT_URL, json=payload)
+        datos = response.json()
+        if datos.get("status") == "ok":
+            return datos.get("texto")
+        else:
+            return f"❌ Error en la base de datos: {datos.get('mensaje')}"
+    except Exception as e:
+        return f"❌ Error de conexión con Google Drive: {e}"
 
 def enviar_mensaje_botones(numero_destino, texto_body, botones_config):
     url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
@@ -33,8 +49,7 @@ def enviar_mensaje_botones(numero_destino, texto_body, botones_config):
             "action": {"buttons": botones_formateados}
         }
     }
-    respuesta = requests.post(url, headers=headers, json=data)
-    print(f"🤖 Meta responde a botones: {respuesta.json()}")
+    requests.post(url, headers=headers, json=data)
 
 def enviar_texto(numero_destino, texto):
     url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
@@ -48,8 +63,7 @@ def enviar_texto(numero_destino, texto):
         "type": "text",
         "text": {"body": texto}
     }
-    respuesta = requests.post(url, headers=headers, json=data)
-    print(f"🤖 Meta responde a texto: {respuesta.json()}")
+    requests.post(url, headers=headers, json=data)
 
 @app.route('/webhook', methods=['GET'])
 def verificar_webhook():
@@ -69,25 +83,22 @@ def recibir_mensajes():
         numero_remitente = mensaje_info['from']
         
         print(f"📥 Mensaje recibido del número: {numero_remitente}")
-        
         rol_usuario = PERFILES.get(numero_remitente, "desconocido")
-        print(f"🕵️ Rol asignado en sistema: {rol_usuario}")
 
         if rol_usuario == "desconocido":
-            enviar_texto(numero_remitente, "⛔ Acceso denegado. Este número no está registrado en el sistema del taller.")
+            enviar_texto(numero_remitente, "⛔ Acceso denegado. Este número no está registrado en el sistema.")
             return jsonify({"status": "ok"}), 200
 
         # --- MENSAJE INICIAL ---
         if mensaje_info['type'] == 'text':
-            print("📝 Es un mensaje de texto. Procesando menú inicial...")
             if rol_usuario == "admin":
                 texto = "👑 *Panel de Administración*\nHola. Selecciona la acción a realizar:"
-                botones = [("btn_admin_control", "⚙️ Control"), ("btn_admin_trabajos", "📋 Trabajos"), ("btn_admin_inv", "📊 Inventario")]
+                botones = [("btn_admin_control", "Control"), ("btn_admin_trabajos", "Trabajos"), ("btn_admin_inv", "Inventario")]
                 enviar_mensaje_botones(numero_remitente, texto, botones)
             
             elif rol_usuario == "carpintero":
                 texto = "🛠️ *Panel de Taller*\nHola Maestro. Seleccione una opción:"
-                botones = [("btn_carp_lista", "📝 Lista Semanal"), ("btn_carp_inv", "🪵 Ver Inventario")]
+                botones = [("btn_carp_lista", "Lista Semanal"), ("btn_carp_inv", "Ver Inventario")]
                 enviar_mensaje_botones(numero_remitente, texto, botones)
 
         # --- INTERACCIONES BOTONES ---
@@ -98,21 +109,25 @@ def recibir_mensajes():
             if rol_usuario == "admin":
                 if boton_id == "btn_admin_control":
                     texto = "⚙️ *Control de Listas*\n¿Qué área deseas gestionar?"
-                    botones = [("btn_ctrl_carpinteria", "🪵 L. Carpintería"), ("btn_ctrl_envios", "🚚 L. Envíos")]
+                    botones = [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")]
                     enviar_mensaje_botones(numero_remitente, texto, botones)
                 
                 elif boton_id == "btn_ctrl_carpinteria":
                     texto = "🪵 *Lista de Carpintería Semanal*\nNo hay una lista activa."
-                    botones = [("btn_crear_lista_carp", "✨ Crear Lista Nueva")]
+                    botones = [("btn_crear_lista_carp", "Crear Lista Nueva")]
                     enviar_mensaje_botones(numero_remitente, texto, botones)
                 
                 elif boton_id == "btn_ctrl_envios":
                     texto = "🚚 *Control de Envíos*\n¿Para qué sucursal generarás la lista?"
-                    botones = [("btn_crear_envio_lpz", "📍 La Paz"), ("btn_crear_envio_cbba", "📍 Cochabamba")]
+                    botones = [("btn_crear_envio_lpz", "La Paz"), ("btn_crear_envio_cbba", "Cochabamba")]
                     enviar_mensaje_botones(numero_remitente, texto, botones)
                 
+                # --- LA MAGIA: CONEXIÓN CON DRIVE ---
                 elif boton_id == "btn_crear_lista_carp":
-                    enviar_texto(numero_remitente, "⏳ Calculando necesidades de producción en base a ventas e inventario actual...")
+                    enviar_texto(numero_remitente, "⏳ Extrayendo historial y calculando necesidades de producción... Esto puede tomar unos segundos.")
+                    resultado = consultar_apps_script("generar_lista_carpinteria")
+                    enviar_texto(numero_remitente, resultado)
+                
                 elif boton_id == "btn_crear_envio_lpz":
                     enviar_texto(numero_remitente, "⏳ Analizando inventario de Santa Cruz y necesidades de La Paz...")
                 elif boton_id == "btn_crear_envio_cbba":
@@ -122,6 +137,10 @@ def recibir_mensajes():
                 elif boton_id == "btn_admin_inv":
                     enviar_texto(numero_remitente, "📊 Mostrando inventario global...")
 
+    return jsonify({"status": "ok"}), 200
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
     return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
