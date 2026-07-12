@@ -141,26 +141,3 @@ def recibir_mensajes():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-                # --- LA MAGIA: CONEXIÓN CON DRIVE ---
-                elif boton_id == "btn_crear_lista_carp":
-                    enviar_texto(numero_remitente, "⏳ Extrayendo historial y calculando necesidades de producción... Esto puede tomar unos segundos.")
-                    resultado = consultar_apps_script("generar_lista_carpinteria")
-                    enviar_texto(numero_remitente, resultado)
-                
-                elif boton_id == "btn_crear_envio_lpz":
-                    enviar_texto(numero_remitente, "⏳ Analizando inventario de Santa Cruz y necesidades de La Paz...")
-                elif boton_id == "btn_crear_envio_cbba":
-                    enviar_texto(numero_remitente, "⏳ Analizando inventario de Santa Cruz y necesidades de Cochabamba...")
-                elif boton_id == "btn_admin_trabajos":
-                    enviar_texto(numero_remitente, "📅 *Historial de Trabajos*\nEscribe la fecha que deseas consultar:")
-                elif boton_id == "btn_admin_inv":
-                    enviar_texto(numero_remitente, "📊 Mostrando inventario global...")
-
-    return jsonify({"status": "ok"}), 200
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-    return jsonify({"status": "ok"}), 200
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
