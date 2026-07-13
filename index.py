@@ -11,7 +11,7 @@ WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEA
 PHONE_NUMBER_ID = "1253869841136312"
 
 # 👇 PEGA TU NUEVA URL DE APPS SCRIPT AQUÍ 👇
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAULTbGWuBXIhOQKms3CsDsInyDB8IbVXGv31gCgdrv2rfKZVndZ5VcwmEoJK_csvJ3A/exec" 
+APPS_SCRIPT_URL = "hhttps://script.google.com/macros/s/AKfycbxhb6SHSE6cTQ1vD1bvIPJribU9GotBLdUi8GALPXNjnh9rD4dUGWbskvOVlM63Qi0BAg/exec" 
 
 PERFILES = {
     "59178150540": "admin",             
