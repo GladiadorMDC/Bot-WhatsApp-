@@ -134,8 +134,15 @@ def webhook():
                     enviar_texto(numero_remitente, resultado)
                 # --- NUEVOS BOTONES DE LISTA ---
                 elif boton_id == "btn_modificar_lista":
-                    # Aquí definiremos la lógica de edición
-                    enviar_texto(numero_remitente, "Ingresando al modo de modificación...")
+                    # Usamos una lista temporal hardcodeada por ahora para la interfaz, luego la conectaremos a la DB
+                    opciones_marcos = [
+                        ("mod_marco4_30x42", "Marco 4 (30x42)"),
+                        ("mod_marcoA2_16x22", "Marco A2 (16x22)"),
+                        ("mod_marco4_50x40", "Marco 4 (50x40)"),
+                        ("mod_marco3_30x42", "Marco 3 (30x42)"),
+                        ("mod_marcoB2_20x27", "Marco B2 (20x27)")
+                    ]
+                    enviar_mensaje_lista(numero_remitente, "✏️ Modificar Cantidad", "Selecciona el marco que deseas ajustar:", "Elegir Marco", opciones_marcos)
                     
                 elif boton_id == "btn_consolidar_lista":
                     enviar_texto(numero_remitente, "⏳ Consolidando la lista actual en la base de datos...")
@@ -154,9 +161,18 @@ def webhook():
                     fechas_menu = generar_fechas_recientes()
                     enviar_mensaje_lista(numero_remitente, "📅 Calendario de Trabajos", "Selecciona el día que deseas consultar:", "🗓️ Elegir Fecha", fechas_menu)
 
-            # Si seleccionó una opción del Menú de Lista (Calendario)
+            # Si seleccionó una opción del Menú de Lista
             elif interaccion['type'] == 'list_reply':
                 lista_id = interaccion['list_reply']['id']
+                
+                # ... (tu código del calendario fecha_) ...
+
+                elif lista_id.startswith("mod_"):
+                    marco_elegido = interaccion['list_reply']['title'] # Obtenemos el nombre "Marco 4 (30x42)"
+                    enviar_texto(numero_remitente, f"Has seleccionado *{marco_elegido}*.\n\nEscribe el *nuevo número* que deseas asignarle. (Solo el número).")
+                    
+                    # (Nota de diseño: Aquí necesitaremos agregar una variable global o conectar a una base de datos 
+                    # para recordar qué marco eligió el usuario cuando responda con el número en el próximo mensaje).
                 
                 if lista_id.startswith("fecha_"):
                     fecha_elegida = lista_id.replace("fecha_", "") # Extraemos el '2026-07-12'
