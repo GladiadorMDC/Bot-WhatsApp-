@@ -10,7 +10,7 @@ VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
 
-# 👇 PEGA TU NUEVA URL DE APPS SCRIPT AQUÍ 👇
+# 👇 URL DE APPS SCRIPT 👇
 APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfRQZa-7UMbtueNj9E1fVH_VYraWSDx6ReYt249B1MSzZpKsAMJuGehXxZWoh0npkAPA/exec" 
 
 PERFILES = {
@@ -53,7 +53,6 @@ def enviar_mensaje_botones(numero, texto_body, botones_config):
     requests.post(url, headers=headers, json=data)
 
 def enviar_mensaje_lista(numero, titulo, descripcion, boton_texto, opciones):
-    """Genera un menú desplegable estilo calendario para elegir fechas"""
     url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
     
@@ -68,14 +67,13 @@ def enviar_mensaje_lista(numero, titulo, descripcion, boton_texto, opciones):
             "body": {"text": descripcion},
             "action": {
                 "button": boton_texto,
-                "sections": [{"title": "Fechas Disponibles", "rows": rows}]
+                "sections": [{"title": "Opciones Disponibles", "rows": rows}]
             }
         }
     }
     requests.post(url, headers=headers, json=data)
 
 def generar_fechas_recientes():
-    """Calcula los últimos 7 días automáticamente"""
     hoy = datetime.now(ZONA_BOLIVIA)
     fechas = []
     for i in range(7):
@@ -122,19 +120,21 @@ def webhook():
                 
                 if boton_id == "btn_admin_control":
                     enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")])
+                
                 elif boton_id == "btn_ctrl_carpinteria":
                     enviar_mensaje_botones(numero_remitente, "🪵 *Lista de Carpintería Semanal*\n¿Qué deseas hacer?", [
                         ("btn_crear_lista_carp", "Crear Nueva"),
                         ("btn_modificar_lista", "Modificar Lista"),
                         ("btn_consolidar_lista", "Consolidar Lista")
                     ])
+                
                 elif boton_id == "btn_crear_lista_carp":
                     enviar_texto(numero_remitente, "⏳ Procesando historial de últimos 30 días y ajustes...")
                     resultado = consultar_apps_script("generar_lista_carpinteria")
                     enviar_texto(numero_remitente, resultado)
-                # --- NUEVOS BOTONES DE LISTA ---
+                
                 elif boton_id == "btn_modificar_lista":
-                    # Usamos una lista temporal hardcodeada por ahora para la interfaz, luego la conectaremos a la DB
+                    # Lista temporal para la interfaz (luego la automatizaremos)
                     opciones_marcos = [
                         ("mod_marco4_30x42", "Marco 4 (30x42)"),
                         ("mod_marcoA2_16x22", "Marco A2 (16x22)"),
@@ -146,17 +146,12 @@ def webhook():
                     
                 elif boton_id == "btn_consolidar_lista":
                     enviar_texto(numero_remitente, "⏳ Consolidando la lista actual en la base de datos...")
-                    # Aquí irá la llamada a consultar_apps_script("consolidar_lista")
-                    # resultado = consultar_apps_script("consolidar_lista")
-                    # enviar_texto(numero_remitente, resultado)
                 
-                # --- AQUÍ ESTÁ LA MAGIA DEL INVENTARIO ---
                 elif boton_id == "btn_admin_inv":
                     enviar_texto(numero_remitente, "⏳ Consultando inventario en tiempo real...")
                     resultado = consultar_apps_script("consultar_inventario", sucursal="Santa Cruz")
                     enviar_texto(numero_remitente, resultado)
                 
-                # --- AQUÍ ESTÁ LA MAGIA DEL "CALENDARIO" ---
                 elif boton_id == "btn_admin_trabajos":
                     fechas_menu = generar_fechas_recientes()
                     enviar_mensaje_lista(numero_remitente, "📅 Calendario de Trabajos", "Selecciona el día que deseas consultar:", "🗓️ Elegir Fecha", fechas_menu)
@@ -165,20 +160,15 @@ def webhook():
             elif interaccion['type'] == 'list_reply':
                 lista_id = interaccion['list_reply']['id']
                 
-                # ... (tu código del calendario fecha_) ...
-
-                elif lista_id.startswith("mod_"):
-                    marco_elegido = interaccion['list_reply']['title'] # Obtenemos el nombre "Marco 4 (30x42)"
-                    enviar_texto(numero_remitente, f"Has seleccionado *{marco_elegido}*.\n\nEscribe el *nuevo número* que deseas asignarle. (Solo el número).")
-                    
-                    # (Nota de diseño: Aquí necesitaremos agregar una variable global o conectar a una base de datos 
-                    # para recordar qué marco eligió el usuario cuando responda con el número en el próximo mensaje).
-                
                 if lista_id.startswith("fecha_"):
-                    fecha_elegida = lista_id.replace("fecha_", "") # Extraemos el '2026-07-12'
+                    fecha_elegida = lista_id.replace("fecha_", "")
                     enviar_texto(numero_remitente, f"⏳ Buscando registros del {fecha_elegida}...")
                     resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida)
                     enviar_texto(numero_remitente, resultado)
+
+                elif lista_id.startswith("mod_"):
+                    marco_elegido = interaccion['list_reply']['title']
+                    enviar_texto(numero_remitente, f"Has seleccionado *{marco_elegido}*.\n\nEscribe el *nuevo número* que deseas asignarle. (Solo el número).")
 
     return jsonify({"status": "ok"}), 200
 
