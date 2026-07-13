@@ -122,12 +122,26 @@ def webhook():
                 
                 if boton_id == "btn_admin_control":
                     enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")])
-                elif boton_id == "btn_ctrl_carpinteria":
-                    enviar_mensaje_botones(numero_remitente, "🪵 *Lista de Carpintería Semanal*", [("btn_crear_lista_carp", "Crear Lista Nueva")])
+                                elif boton_id == "btn_ctrl_carpinteria":
+                    enviar_mensaje_botones(numero_remitente, "🪵 *Lista de Carpintería Semanal*\n¿Qué deseas hacer?", [
+                        ("btn_crear_lista_carp", "Crear Nueva"),
+                        ("btn_modificar_lista", "Modificar Lista"),
+                        ("btn_consolidar_lista", "Consolidar Lista")
+                    ])
                 elif boton_id == "btn_crear_lista_carp":
                     enviar_texto(numero_remitente, "⏳ Procesando historial de últimos 30 días y ajustes...")
                     resultado = consultar_apps_script("generar_lista_carpinteria")
                     enviar_texto(numero_remitente, resultado)
+                # --- NUEVOS BOTONES DE LISTA ---
+                elif boton_id == "btn_modificar_lista":
+                    # Aquí definiremos la lógica de edición
+                    enviar_texto(numero_remitente, "Ingresando al modo de modificación...")
+                    
+                elif boton_id == "btn_consolidar_lista":
+                    enviar_texto(numero_remitente, "⏳ Consolidando la lista actual en la base de datos...")
+                    # Aquí irá la llamada a consultar_apps_script("consolidar_lista")
+                    # resultado = consultar_apps_script("consolidar_lista")
+                    # enviar_texto(numero_remitente, resultado)
                 
                 # --- AQUÍ ESTÁ LA MAGIA DEL INVENTARIO ---
                 elif boton_id == "btn_admin_inv":
