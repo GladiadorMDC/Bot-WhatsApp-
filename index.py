@@ -9,14 +9,13 @@ app = Flask(__name__)
 VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyVfiffGUZaQfg6AgLl8oQMYGY-_HCV-EjxhC6ROAOsnqOkgmklw-QAzk1UjjS4b3x0uA/exec" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfRQZa-7UMbtueNj9E1fVH_VYraWSDx6ReYt249B1MSzZpKsAMJuGehXxZWoh0npkAPA/exec" 
 
 # --- GESTIÓN ESCALABLE DE PERFILES ---
-# Separa múltiples números con un guion: "591XXXX-591YYYY-591ZZZZ"
 PERFILES = {
-    "admin": "59178120249-59178505063-78150540",             
-    "carpintero": "59175035455",        
-    "sucursal_scz": "",      
+    "admin": "59178150540-78120249",             
+    "carpintero": "591XXXXXXXX-591WWWWWWWW",        
+    "sucursal_scz": "591YYYYYYYY",      
     "sucursal_lpz": "591ZZZZZZZZ",
     "sucursal_cba": "591AAAAAAAA"
 }
@@ -27,9 +26,7 @@ def obtener_rol(numero):
             return rol
     return "desconocido"
 
-# --- MEMORIA DEL SISTEMA ---
 ESTADO_USUARIOS = {} 
-
 ZONA_BOLIVIA = pytz.timezone('America/La_Paz')
 
 def consultar_apps_script(accion, **kwargs):
@@ -39,8 +36,7 @@ def consultar_apps_script(accion, **kwargs):
         response = requests.post(APPS_SCRIPT_URL, json=payload)
         datos = response.json()
         
-        if accion == "obtener_menu_lista":
-            return datos 
+        if accion == "obtener_menu_lista": return datos 
             
         if datos.get("status") == "ok":
             return datos.get("texto")
@@ -86,12 +82,12 @@ def enviar_mensaje_lista(numero, titulo, descripcion, boton_texto, opciones):
     }
     requests.post(url, headers=headers, json=data)
 
-def generar_fechas_recientes():
+def generar_fechas_recientes(cod_suc="SCZ"):
     hoy = datetime.now(ZONA_BOLIVIA)
     fechas = []
     for i in range(7):
         dia = hoy - timedelta(days=i)
-        fecha_id = f"fecha_{dia.strftime('%Y-%m-%d')}"
+        fecha_id = f"fecha_{cod_suc}_{dia.strftime('%Y-%m-%d')}"
         nombre = f"Hoy ({dia.strftime('%d/%m')})" if i == 0 else f"Ayer ({dia.strftime('%d/%m')})" if i == 1 else dia.strftime('%d/%m/%Y')
         fechas.append((fecha_id, nombre))
     return fechas
@@ -124,11 +120,9 @@ def webhook():
         if mensaje_info['type'] == 'text':
             texto_usuario = mensaje_info['text']['body'].strip()
             
-            # 1. Modos de Edición (Carpintero / Admin)
             if numero_remitente in ESTADO_USUARIOS:
                 estado = ESTADO_USUARIOS[numero_remitente]
                 
-                # Modificando la lista oficial
                 if estado["modo"] == "esperando_numero":
                     marco_a_modificar = estado["item"]
                     resultado = consultar_apps_script("modificar_item", perfil=rol_usuario, item=marco_a_modificar, valor=texto_usuario)
@@ -136,13 +130,11 @@ def webhook():
                     del ESTADO_USUARIOS[numero_remitente] 
                     return jsonify({"status": "ok"}), 200
                 
-                # Añadiendo trabajo extra (Paso 1: Recibe nombre, pide cantidad)
                 elif estado["modo"] == "esperando_nombre_extra":
                     ESTADO_USUARIOS[numero_remitente] = {"modo": "esperando_cantidad_extra", "item": texto_usuario}
                     enviar_texto(numero_remitente, f"Marco extra: *{texto_usuario}*.\n¿Cuántos terminaste? (Solo el número)")
                     return jsonify({"status": "ok"}), 200
                 
-                # Añadiendo trabajo extra (Paso 2: Recibe cantidad y envía a DB)
                 elif estado["modo"] == "esperando_cantidad_extra":
                     marco_extra = estado["item"]
                     resultado = consultar_apps_script("registrar_trabajo_extra", item=marco_extra, valor=texto_usuario)
@@ -150,24 +142,26 @@ def webhook():
                     del ESTADO_USUARIOS[numero_remitente] 
                     return jsonify({"status": "ok"}), 200
             
-            # 2. Comando Sumar Personalizado (Admin)
             if texto_usuario.lower().startswith("sumar ") and rol_usuario == "admin":
                 partes = texto_usuario.split()
-                if len(partes) == 2 and partes[1].isdigit():
+                if len(partes) >= 2 and partes[1].isdigit():
                     dias = int(partes[1])
-                    enviar_texto(numero_remitente, f"⏳ Sumando historial de los últimos {dias} días...")
-                    resultado = consultar_apps_script("sumar_historial", dias=dias)
+                    enviar_texto(numero_remitente, f"⏳ Sumando historial de los últimos {dias} días (Santa Cruz)...")
+                    resultado = consultar_apps_script("sumar_historial", dias=dias, sucursal="Santa Cruz")
                     enviar_texto(numero_remitente, resultado)
                     return jsonify({"status": "ok"}), 200
 
-            # 3. Menús Principales por Perfil
             if rol_usuario == "admin":
                 enviar_mensaje_botones(numero_remitente, "👑 *Panel de Administración*", [("btn_admin_control", "Control"), ("btn_admin_trabajos", "Trabajos"), ("btn_menu_inventarios", "Inventarios")])
             
             elif rol_usuario == "carpintero":
-                enviar_mensaje_botones(numero_remitente, "🔨 *Panel de Carpintero*", [("btn_modificar_lista", "Reportar de la Lista"), ("btn_trabajo_extra", "Añadir Trabajo Extra")])
+                # --- AHORA TIENE LOS 3 BOTONES, INCLUYENDO "VER LISTA" ---
+                enviar_mensaje_botones(numero_remitente, "🔨 *Panel de Carpintero*", [
+                    ("btn_ver_lista", "Ver Lista"),
+                    ("btn_modificar_lista", "Reportar Avance"),
+                    ("btn_trabajo_extra", "Trabajo Extra")
+                ])
             
-            # Perfiles asilados de sucursales (Directo al grano)
             elif rol_usuario == "sucursal_scz":
                 enviar_texto(numero_remitente, "⏳ Obteniendo inventario de Santa Cruz...")
                 resultado = consultar_apps_script("consultar_inventario", sucursal="Santa Cruz")
@@ -191,7 +185,6 @@ def webhook():
                 if boton_id == "btn_admin_control":
                     enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_prod", "L. Producción"), ("btn_ctrl_envios", "L. Envíos")])
                 
-                # --- LISTA DE CARPINTERIA ---
                 elif boton_id == "btn_ctrl_carpinteria":
                     enviar_mensaje_botones(numero_remitente, "🪵 *Gestión de Lista*\n¿Qué deseas hacer?", [("btn_ver_lista", "Ver Lista"), ("btn_modificar_lista", "Modificar Lista"), ("btn_preguntar_crear", "Crear Nueva")])
                 
@@ -207,7 +200,7 @@ def webhook():
                     enviar_texto(numero_remitente, resultado)
                 
                 elif boton_id == "btn_ver_lista":
-                    enviar_texto(numero_remitente, "⏳ Obteniendo lista consolidada...")
+                    enviar_texto(numero_remitente, "⏳ Obteniendo lista...")
                     resultado = consultar_apps_script("ver_lista_actual")
                     enviar_texto(numero_remitente, resultado)
                 
@@ -225,17 +218,14 @@ def webhook():
                     else:
                         enviar_texto(numero_remitente, respuesta_menu.get("texto", "❌ Error al cargar la lista."))
                 
-                # --- LISTA DE PRODUCCIÓN (SEMANAL) ---
                 elif boton_id == "btn_ctrl_prod":
                     semanas_menu = generar_semanas_recientes()
                     enviar_mensaje_lista(numero_remitente, "📈 Lista de Producción", "Elige la semana a consultar:", "🗓️ Elegir Semana", semanas_menu)
 
-                # --- TRABAJOS EXTRA (CARPINTERO) ---
                 elif boton_id == "btn_trabajo_extra":
                     ESTADO_USUARIOS[numero_remitente] = {"modo": "esperando_nombre_extra"}
                     enviar_texto(numero_remitente, "➕ *Trabajo Extra*\nEscribe el Nombre y Tamaño del marco que fabricaste. (Ej: Marco A2 16x22)")
 
-                # --- SELECCIÓN DE SUCURSAL PARA INVENTARIO (ADMIN) ---
                 elif boton_id == "btn_menu_inventarios":
                     enviar_mensaje_botones(numero_remitente, "📍 *Selector de Sucursal*\n¿Qué inventario deseas revisar?", [("btn_inv_scz", "Santa Cruz"), ("btn_inv_lpz", "La Paz"), ("btn_inv_cba", "Cochabamba")])
 
@@ -246,11 +236,23 @@ def webhook():
                     resultado = consultar_apps_script("consultar_inventario", sucursal=sucursal_elegida)
                     enviar_texto(numero_remitente, resultado)
                 
-                # --- CALENDARIO HISTORIAL ---
+                # --- NUEVO SELECTOR DE SUCURSAL PARA TRABAJOS ---
                 elif boton_id == "btn_admin_trabajos":
-                    fechas_menu = generar_fechas_recientes()
-                    fechas_menu.insert(0, ("sumar_30", "📊 Sumar últimos 30 días"))
-                    enviar_mensaje_lista(numero_remitente, "📅 Historial Diario", "Selecciona una opción:", "🗓️ Elegir", fechas_menu)
+                    enviar_mensaje_botones(numero_remitente, "📍 *Historial por Sucursal*\n¿De qué ciudad deseas ver los trabajos?", [
+                        ("btn_trab_scz", "Santa Cruz"), 
+                        ("btn_trab_lpz", "La Paz"), 
+                        ("btn_trab_cba", "Cochabamba")
+                    ])
+                
+                # --- PREPARANDO EL CALENDARIO SEGÚN LA SUCURSAL ELEGIDA ---
+                elif boton_id.startswith("btn_trab_"):
+                    sucursales_map = {"btn_trab_scz": "SCZ", "btn_trab_lpz": "LPZ", "btn_trab_cba": "CBA"}
+                    cod_suc = sucursales_map[boton_id]
+                    nombre_suc = {"SCZ": "Santa Cruz", "LPZ": "La Paz", "CBA": "Cochabamba"}[cod_suc]
+
+                    fechas_menu = generar_fechas_recientes(cod_suc)
+                    fechas_menu.insert(0, (f"sumar_30_{cod_suc}", "📊 Sumar 30 días"))
+                    enviar_mensaje_lista(numero_remitente, f"📅 Historial: {nombre_suc}", "Selecciona una opción:", "🗓️ Elegir", fechas_menu)
 
             # --- RESPUESTAS DE MENÚS DESPLEGABLES ---
             elif interaccion['type'] == 'list_reply':
@@ -258,9 +260,14 @@ def webhook():
                 titulo_elegido = interaccion['list_reply']['title']
                 
                 if lista_id.startswith("sumar_"):
-                    dias = int(lista_id.split("_")[1])
-                    enviar_texto(numero_remitente, f"⏳ Sumando producción de los últimos {dias} días...\n\n_(Tip: Si deseas ver otro periodo, escríbeme 'Sumar 90' para 3 meses)_")
-                    resultado = consultar_apps_script("sumar_historial", dias=dias)
+                    # Extraemos los días y el código de la sucursal (ej: sumar_30_SCZ)
+                    partes = lista_id.split("_")
+                    dias = int(partes[1])
+                    cod_suc = partes[2] if len(partes) > 2 else "SCZ"
+                    nombre_suc = {"SCZ": "Santa Cruz", "LPZ": "La Paz", "CBA": "Cochabamba"}.get(cod_suc, "Santa Cruz")
+
+                    enviar_texto(numero_remitente, f"⏳ Sumando producción de {nombre_suc} (últimos {dias} días)...")
+                    resultado = consultar_apps_script("sumar_historial", dias=dias, sucursal=nombre_suc)
                     enviar_texto(numero_remitente, resultado)
 
                 elif lista_id.startswith("semana_"):
@@ -270,9 +277,14 @@ def webhook():
                     enviar_texto(numero_remitente, resultado)
 
                 elif lista_id.startswith("fecha_"):
-                    fecha_elegida = lista_id.replace("fecha_", "")
-                    enviar_texto(numero_remitente, f"⏳ Buscando registros del {fecha_elegida}...")
-                    resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida)
+                    # Extraemos el código de la sucursal y la fecha (ej: fecha_SCZ_2026-07-14)
+                    partes = lista_id.split("_")
+                    cod_suc = partes[1]
+                    fecha_elegida = partes[2]
+                    nombre_suc = {"SCZ": "Santa Cruz", "LPZ": "La Paz", "CBA": "Cochabamba"}.get(cod_suc, "Santa Cruz")
+
+                    enviar_texto(numero_remitente, f"⏳ Buscando registros de {nombre_suc} del {fecha_elegida}...")
+                    resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida, sucursal=nombre_suc)
                     enviar_texto(numero_remitente, resultado)
 
                 elif lista_id.startswith("mod_"):
