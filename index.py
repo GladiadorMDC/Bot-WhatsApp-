@@ -14,9 +14,9 @@ APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyVfiffGUZaQfg6AgLl8o
 # --- GESTIÓN ESCALABLE DE PERFILES ---
 # Separa múltiples números con un guion: "591XXXX-591YYYY-591ZZZZ"
 PERFILES = {
-    "admin": "59178120249-59178505063",             
+    "admin": "59178120249-59178505063-78150540",             
     "carpintero": "59175035455",        
-    "sucursal_scz": "59178150540",      
+    "sucursal_scz": "",      
     "sucursal_lpz": "591ZZZZZZZZ",
     "sucursal_cba": "591AAAAAAAA"
 }
