@@ -9,7 +9,7 @@ app = Flask(__name__)
 VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwC3r_bDR5gDDy7Pw_tSAsiWn6wnyOxIH6jKEaPB48x4BETZwOir9VDWe27lHj9e8XA/exec" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyVfiffGUZaQfg6AgLl8oQMYGY-_HCV-EjxhC6ROAOsnqOkgmklw-QAzk1UjjS4b3x0uA/exec" 
 
 # --- GESTIÓN ESCALABLE DE PERFILES ---
 # Separa múltiples números con un guion: "591XXXX-591YYYY-591ZZZZ"
