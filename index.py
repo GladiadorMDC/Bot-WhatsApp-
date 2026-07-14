@@ -9,7 +9,7 @@ app = Flask(__name__)
 VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzN6pvSQ8UtlqMcgV0tvMwuawMD65p3ICCmDZVH4kwjrx1sLsPUlgj1-o1UKavL88bhag/exec" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAwUc9u2Exk80MKhDBD5ePC6h9fb_kSRs7HMPgFdZ7ReeEu-rSW8nTRzy5TS4nUzMDlw/exec" 
 
 PERFILES = {
     "59178150540": "admin",             
