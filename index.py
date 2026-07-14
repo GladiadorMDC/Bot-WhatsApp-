@@ -9,7 +9,7 @@ app = Flask(__name__)
 VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAwUc9u2Exk80MKhDBD5ePC6h9fb_kSRs7HMPgFdZ7ReeEu-rSW8nTRzy5TS4nUzMDlw/exec" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwC3r_bDR5gDDy7Pw_tSAsiWn6wnyOxIH6jKEaPB48x4BETZwOir9VDWe27lHj9e8XA/exec" 
 
 PERFILES = {
     "59178150540": "admin",             
@@ -18,21 +18,18 @@ PERFILES = {
     "591ZZZZZZZZ": "sucursal_cbba"      
 }
 
-# --- MEMORIA DEL BOT (Para modificaciones) ---
+# Memoria de estado para las modificaciones
 ESTADO_USUARIOS = {} 
-# Guardará algo como: {"59178150540": {"modo": "esperando_numero", "item": "Marco 4 (30x42)"}}
 
 ZONA_BOLIVIA = pytz.timezone('America/La_Paz')
 
 def consultar_apps_script(accion, **kwargs):
-    """Ahora permite enviar cualquier parámetro extra como 'perfil', 'item', 'valor'"""
     try:
         payload = {"accion": accion}
         payload.update(kwargs)
         response = requests.post(APPS_SCRIPT_URL, json=payload)
         datos = response.json()
         
-        # Si pedimos la lista para el menú interactivo, devolvemos el diccionario completo
         if accion == "obtener_menu_lista":
             return datos 
             
@@ -63,7 +60,6 @@ def enviar_mensaje_botones(numero, texto_body, botones_config):
 def enviar_mensaje_lista(numero, titulo, descripcion, boton_texto, opciones):
     url = f"https://graph.facebook.com/v25.0/{PHONE_NUMBER_ID}/messages"
     headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"}
-    
     rows = [{"id": op[0], "title": op[1]} for op in opciones]
     data = {
         "messaging_product": "whatsapp",
@@ -112,25 +108,30 @@ def webhook():
         if mensaje_info['type'] == 'text':
             texto_usuario = mensaje_info['text']['body'].strip()
             
-            # 1. Verificar si el usuario estaba en medio de una edición
+            # 1. Modo Edición de Lista
             if numero_remitente in ESTADO_USUARIOS:
                 estado = ESTADO_USUARIOS[numero_remitente]
                 if estado["modo"] == "esperando_numero":
                     marco_a_modificar = estado["item"]
-                    
-                    # Llamamos a Google Script pasándole el número escrito
                     resultado = consultar_apps_script("modificar_item", perfil=rol_usuario, item=marco_a_modificar, valor=texto_usuario)
                     enviar_texto(numero_remitente, resultado)
-                    
-                    # Limpiamos su memoria para que vuelva a la normalidad
                     del ESTADO_USUARIOS[numero_remitente] 
                     return jsonify({"status": "ok"}), 200
             
-            # 2. Si no estaba editando, es un saludo normal
+            # 2. Comando especial para sumar fechas personalizadas
+            if texto_usuario.lower().startswith("sumar "):
+                partes = texto_usuario.split()
+                if len(partes) == 2 and partes[1].isdigit():
+                    dias = int(partes[1])
+                    enviar_texto(numero_remitente, f"⏳ Sumando historial de los últimos {dias} días...")
+                    resultado = consultar_apps_script("sumar_historial", dias=dias)
+                    enviar_texto(numero_remitente, resultado)
+                    return jsonify({"status": "ok"}), 200
+
+            # 3. Saludo normal
             if rol_usuario == "admin":
                 enviar_mensaje_botones(numero_remitente, "👑 *Panel de Administración*", [("btn_admin_control", "Control"), ("btn_admin_trabajos", "Trabajos"), ("btn_admin_inv", "Inventario")])
             elif rol_usuario == "carpintero":
-                # Le damos al carpintero su propio botón directo
                 enviar_mensaje_botones(numero_remitente, "🔨 *Panel de Carpintero*", [("btn_modificar_lista", "Reportar Avance")])
 
         # --- INTERACCIONES (BOTONES Y LISTAS) ---
@@ -143,38 +144,44 @@ def webhook():
                 if boton_id == "btn_admin_control":
                     enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_envios", "L. Envíos")])
                 
+                # --- NUEVO ORDEN DE BOTONES DE LISTA ---
                 elif boton_id == "btn_ctrl_carpinteria":
-                    enviar_mensaje_botones(numero_remitente, "🪵 *Lista de Carpintería Semanal*\n¿Qué deseas hacer?", [
-                        ("btn_crear_lista_carp", "Crear Nueva"),
+                    enviar_mensaje_botones(numero_remitente, "🪵 *Gestión de Lista*\n¿Qué deseas hacer?", [
+                        ("btn_ver_lista", "Ver Lista"),
                         ("btn_modificar_lista", "Modificar Lista"),
-                        ("btn_consolidar_lista", "Consolidar Lista")
+                        ("btn_preguntar_crear", "Crear Nueva") # El botón Crear está al final
                     ])
                 
+                # --- CONFIRMACIÓN DE SEGURIDAD ---
+                elif boton_id == "btn_preguntar_crear":
+                    enviar_mensaje_botones(numero_remitente, "⚠️ *¡ATENCIÓN!*\n¿Estás seguro que deseas eliminar la lista anterior por una nueva lista?", [
+                        ("btn_crear_lista_carp", "✅ Sí, crear nueva"),
+                        ("btn_cancelar_accion", "❌ No, cancelar")
+                    ])
+                
+                elif boton_id == "btn_cancelar_accion":
+                    enviar_texto(numero_remitente, "Operación cancelada. La lista actual se mantiene intacta.")
+                
                 elif boton_id == "btn_crear_lista_carp":
-                    enviar_texto(numero_remitente, "⏳ Procesando historial y ajustes...")
+                    enviar_texto(numero_remitente, "⏳ Procesando historial y creando nueva lista...")
                     resultado = consultar_apps_script("generar_lista_carpinteria")
                     enviar_texto(numero_remitente, resultado)
-                    
-                elif boton_id == "btn_consolidar_lista":
-                    enviar_texto(numero_remitente, "⏳ Guardando la lista actual...")
-                    resultado = consultar_apps_script("consolidar_lista")
+                
+                elif boton_id == "btn_ver_lista":
+                    enviar_texto(numero_remitente, "⏳ Obteniendo lista...")
+                    resultado = consultar_apps_script("ver_lista_actual")
                     enviar_texto(numero_remitente, resultado)
                 
                 elif boton_id == "btn_modificar_lista":
-                    # Le pedimos a Drive la lista que está guardada
-                    enviar_texto(numero_remitente, "⏳ Buscando la lista consolidada...")
+                    enviar_texto(numero_remitente, "⏳ Buscando la lista activa...")
                     respuesta_menu = consultar_apps_script("obtener_menu_lista")
                     
                     if respuesta_menu.get("status") == "ok":
                         lista_marcos = respuesta_menu.get("datos", [])
                         opciones_marcos = []
-                        
-                        # Generamos las opciones del menú dinámicamente
                         for i, item in enumerate(lista_marcos):
-                            # Cortamos el título a 24 caracteres por el límite estricto de WhatsApp
                             titulo = item["nombre"][:24] 
                             opciones_marcos.append((f"mod_{i}", titulo))
-                            
                         enviar_mensaje_lista(numero_remitente, "✏️ Lista Actual", "Selecciona el marco que deseas afectar:", "Elegir Marco", opciones_marcos)
                     else:
                         enviar_texto(numero_remitente, respuesta_menu.get("texto", "❌ Error al cargar la lista."))
@@ -186,27 +193,33 @@ def webhook():
                 
                 elif boton_id == "btn_admin_trabajos":
                     fechas_menu = generar_fechas_recientes()
-                    enviar_mensaje_lista(numero_remitente, "📅 Calendario de Trabajos", "Selecciona el día:", "🗓️ Elegir Fecha", fechas_menu)
+                    # Agregamos la opción de sumar los 30 días al inicio del calendario
+                    fechas_menu.insert(0, ("sumar_30", "📊 Sumar últimos 30 días"))
+                    enviar_mensaje_lista(numero_remitente, "📅 Calendario y Resumen", "Selecciona una opción:", "🗓️ Elegir", fechas_menu)
 
-            # Si seleccionó una opción del Menú de Lista
+            # --- RESPUESTAS DE MENÚS DESPLEGABLES ---
             elif interaccion['type'] == 'list_reply':
                 lista_id = interaccion['list_reply']['id']
                 titulo_elegido = interaccion['list_reply']['title']
                 
-                if lista_id.startswith("fecha_"):
+                if lista_id.startswith("sumar_"):
+                    dias = int(lista_id.split("_")[1])
+                    enviar_texto(numero_remitente, f"⏳ Sumando producción de los últimos {dias} días...\n\n_(Tip: Si deseas ver otro periodo, simplemente escríbeme 'Sumar 90' para 3 meses, o 'Sumar 7' para una semana)_")
+                    resultado = consultar_apps_script("sumar_historial", dias=dias)
+                    enviar_texto(numero_remitente, resultado)
+
+                elif lista_id.startswith("fecha_"):
                     fecha_elegida = lista_id.replace("fecha_", "")
                     enviar_texto(numero_remitente, f"⏳ Buscando registros del {fecha_elegida}...")
                     resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida)
                     enviar_texto(numero_remitente, resultado)
 
                 elif lista_id.startswith("mod_"):
-                    # Activamos el modo "esperando_numero" para este usuario en específico
                     ESTADO_USUARIOS[numero_remitente] = {"modo": "esperando_numero", "item": titulo_elegido}
-                    
                     if rol_usuario == "admin":
                         enviar_texto(numero_remitente, f"Has seleccionado *{titulo_elegido}*.\n\nEscribe el *nuevo total faltante* que quieres fijar. (Ej: 15)")
                     elif rol_usuario == "carpintero":
-                        enviar_texto(numero_remitente, f"Has seleccionado *{titulo_elegido}*.\n\nEscribe *cuántos cuadros terminaste hoy* para reportarlos. (Ej: 5)")
+                        enviar_texto(numero_remitente, f"Has seleccionado *{titulo_elegido}*.\n\nEscribe *cuántos cuadros terminaste hoy* para descontarlos. (Ej: 5)")
 
     return jsonify({"status": "ok"}), 200
 
