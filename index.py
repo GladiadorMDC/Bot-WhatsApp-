@@ -9,12 +9,12 @@ app = Flask(__name__)
 VERIFY_TOKEN = "mi_token_secreto_carpinteria"
 WHATSAPP_TOKEN = "EAAS11GIEA50BRvJRK4ZBCedOYRy8dfLlEgYc3GoZCT7nigtxPuy7ED5SR5oEAQOSIjgIKEjIgx414CifjihwE8ZBMtHNzfZBwo4Kawmd5GGTxbIuRNXVyZBvbQ0awinCpeCEQ72rALsuLMOpsYhFzQApYXQZC8K9HXsSETxMcQA4hks3654DbdmkHjUGbeMOJZAUQZDZD"
 PHONE_NUMBER_ID = "1253869841136312"
-APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfRQZa-7UMbtueNj9E1fVH_VYraWSDx6ReYt249B1MSzZpKsAMJuGehXxZWoh0npkAPA/exec" 
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNVxwt7v3AYFO8jI6lGWN60SxchltZzs12C4c9JTXCJ7QN9BmSuflGQfZ7qK-aLd0HLA/exec" 
 
 # --- GESTIÓN ESCALABLE DE PERFILES ---
 PERFILES = {
     "admin": "59178150540-78120249",             
-    "carpintero": "591XXXXXXXX-591WWWWWWWW",        
+    "carpintero": "59162006489-591WWWWWWWW",        
     "sucursal_scz": "591YYYYYYYY",      
     "sucursal_lpz": "591ZZZZZZZZ",
     "sucursal_cba": "591AAAAAAAA"
