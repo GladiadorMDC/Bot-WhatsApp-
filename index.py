@@ -156,9 +156,8 @@ def webhook():
             
             elif rol_usuario == "carpintero":
                 enviar_mensaje_botones(numero_remitente, "🔨 *Panel de Carpintero*", [
-                    ("btn_ver_lista", "Ver Lista"),
-                    ("btn_modificar_lista", "Reportar Avance"),
-                    ("btn_trabajo_extra", "Trabajo Extra")
+                    ("btn_carp_inv", "📦 Inventario"),
+                    ("btn_carp_prod", "🛠️ Producción")
                 ])
             
             elif rol_usuario == "sucursal_scz":
@@ -185,6 +184,18 @@ def webhook():
                     enviar_mensaje_botones(numero_remitente, "⚙️ *Control de Listas*", [("btn_ctrl_carpinteria", "L. Carpintería"), ("btn_ctrl_prod", "L. Producción"), ("btn_ctrl_envios", "L. Envíos")])
                 
                 # --- LISTA DE CARPINTERIA (LIMPIADA) ---
+                # --- NUEVOS MENÚS PRINCIPALES DEL CARPINTERO ---
+                elif boton_id == "btn_carp_inv":
+                    enviar_texto(numero_remitente, "⏳ Obteniendo inventario del taller (Santa Cruz)...")
+                    resultado = consultar_apps_script("consultar_inventario", sucursal="Santa Cruz")
+                    enviar_texto(numero_remitente, resultado)
+                
+                elif boton_id == "btn_carp_prod":
+                    enviar_mensaje_botones(numero_remitente, "🛠️ *Gestión de Producción*\n¿Qué deseas hacer?", [
+                        ("btn_ver_lista", "Ver Lista"),
+                        ("btn_modificar_lista", "Reportar Avance"),
+                        ("btn_trabajo_extra", "Trabajo Extra")
+                    ])
                 elif boton_id == "btn_ctrl_carpinteria":
                     enviar_mensaje_botones(numero_remitente, "🪵 *Gestión de Lista*\n¿Qué deseas hacer?", [("btn_ver_lista", "Ver Lista"), ("btn_preguntar_crear", "Crear Nueva")])
                 
