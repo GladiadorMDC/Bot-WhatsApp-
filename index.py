@@ -14,7 +14,7 @@ APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3y6WmjL-DJhHzZLCswe
 # --- GESTIÓN ESCALABLE DE PERFILES ---
 PERFILES = {
     "admin": "59178120249-59178150540",             
-    "carpintero": "591WWWWWWWW",        
+    "carpintero": "59173379904",        
     "sucursal_scz": "591YYYYYYYY",      
     "sucursal_lpz": "591ZZZZZZZZ",
     "sucursal_cba": "591AAAAAAAA"
