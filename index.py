@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
+import re
 from datetime import datetime, timedelta
 import pytz
 
@@ -122,7 +123,31 @@ def webhook():
             
             if numero_remitente in ESTADO_USUARIOS:
                 estado = ESTADO_USUARIOS[numero_remitente]
+                # 👉 NUEVO 1: Buscar cualquier fecha manualmente (Ej: 2026-07-10)
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", texto_usuario) and rol_usuario == "admin":
+                # Rescata la sucursal que estabas viendo, si no, asume Santa Cruz
+                sucursal = ESTADO_USUARIOS.get(numero_remitente, {}).get("ultima_sucursal", "Santa Cruz")
+                ESTADO_USUARIOS[numero_remitente] = {"ultima_fecha": texto_usuario, "ultima_sucursal": sucursal}
                 
+                enviar_texto(numero_remitente, f"⏳ Buscando historial de {sucursal} para el {texto_usuario}...")
+                resultado = consultar_apps_script("consultar_trabajos", fecha=texto_usuario, sucursal=sucursal)
+                enviar_texto(numero_remitente, resultado)
+                return jsonify({"status": "ok"}), 200
+
+            # 👉 NUEVO 2: Comando inteligente de corrección (Ej: #3 2x Marco B2 (20x27))
+            if texto_usuario.startswith("#") and rol_usuario == "admin":
+                if numero_remitente in ESTADO_USUARIOS and "ultima_fecha" in ESTADO_USUARIOS[numero_remitente]:
+                    estado = ESTADO_USUARIOS[numero_remitente]
+                    fecha = estado["ultima_fecha"]
+                    sucursal = estado["ultima_sucursal"]
+                    
+                    enviar_texto(numero_remitente, f"⏳ Corrigiendo el registro en {sucursal} y reajustando inventario...")
+                    resultado = consultar_apps_script("corregir_historial", sucursal=sucursal, fecha=fecha, texto_correccion=texto_usuario)
+                    enviar_texto(numero_remitente, resultado)
+                else:
+                    enviar_texto(numero_remitente, "❌ Primero busca el historial de un día para saber qué fecha corregir.")
+                return jsonify({"status": "ok"}), 200
+				
                 if estado["modo"] == "esperando_numero":
                     marco_a_modificar = estado["item"]
                     resultado = consultar_apps_script("modificar_item", perfil=rol_usuario, item=marco_a_modificar, valor=texto_usuario)
@@ -302,6 +327,9 @@ def webhook():
                     cod_suc = partes[1]
                     fecha_elegida = partes[2]
                     nombre_suc = {"SCZ": "Santa Cruz", "LPZ": "La Paz", "CBA": "Cochabamba"}.get(cod_suc, "Santa Cruz")
+
+                    # 👉 NUEVO: Guardamos la fecha y sucursal en la memoria
+                    ESTADO_USUARIOS[numero_remitente] = {"ultima_fecha": fecha_elegida, "ultima_sucursal": nombre_suc}
 
                     enviar_texto(numero_remitente, f"⏳ Buscando registros de {nombre_suc} del {fecha_elegida}...")
                     resultado = consultar_apps_script("consultar_trabajos", fecha=fecha_elegida, sucursal=nombre_suc)
